@@ -9,10 +9,10 @@ import { Badge } from "primereact/badge";
 import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
 import { Divider } from "primereact/divider";
-import { Product } from "@/types/product";
 import Image from "next/image";
 import { Tooltip } from "primereact/tooltip";
 import ConfirmationDialog from "./ConfirmationDialogProps";
+import { Product } from "@/types/Product";
 
 export default function ProductTable({
   products,

@@ -2,7 +2,7 @@
 "use client";
 
 import { Dialog } from "primereact/dialog";
-import { Product } from "@/types/product";
+import { Product } from "@/types/Product";
 import { Badge } from "primereact/badge";
 import { Tag } from "primereact/tag";
 
