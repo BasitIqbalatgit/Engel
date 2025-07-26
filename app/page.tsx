@@ -36,9 +36,9 @@ export default function HomePage() {
     setEditProduct(null);
   };
 
+  // Remove window.confirm - let the ProductTable handle confirmation with its custom dialog
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm("Are you sure you want to delete this product?");
-    if (confirmed) await deleteDoc(doc(db, "products", id));
+    await deleteDoc(doc(db, "products", id));
   };
 
   return (
