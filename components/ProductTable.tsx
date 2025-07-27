@@ -1,3 +1,4 @@
+// components/ProductTable.tsx - Updated with error fixes
 import { useState, useCallback } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -10,21 +11,24 @@ import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
 import { Divider } from "primereact/divider";
 import Image from "next/image";
-import { Tooltip } from "primereact/tooltip";
-import ConfirmationDialog from "./ConfirmationDialogProps";
+import ConfirmationDialog from "./ConfirmationDialog";
 import { Product } from "@/types/Product";
+
+interface ProductTableProps {
+  products: Product[];
+  onView: (product: Product) => void;
+  onEdit: (product: Product) => void;
+  onDelete: (id: string) => Promise<void>;
+  loading?: boolean;
+}
 
 export default function ProductTable({
   products,
   onView,
   onEdit,
   onDelete,
-}: {
-  products: Product[];
-  onView: (p: Product) => void;
-  onEdit: (p: Product) => void;
-  onDelete: (id: string) => void;
-}) {
+  loading = false,
+}: ProductTableProps) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [visibilityFilter, setVisibilityFilter] = useState<string>("");
@@ -40,13 +44,13 @@ export default function ProductTable({
   });
 
   // Get min and max prices from products
-  const minPrice = Math.min(...products.map(p => p.price));
-  const maxPrice = Math.max(...products.map(p => p.price));
+  const minPrice = products.length > 0 ? Math.min(...products.map(p => p.price)) : 0;
+  const maxPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 1000;
 
   // Initialize price range only once when component mounts
   const currentPriceRange = priceRange || [minPrice, maxPrice];
 
-  // Status options for dropdown - only specific options, no "All"
+  // Status options for dropdown
   const statusOptions = [
     { label: "In Stock", value: "In Stock" },
     { label: "Out of Stock", value: "Out of Stock" }
@@ -59,24 +63,27 @@ export default function ProductTable({
 
   // Filter products based on all filters
   const filteredProducts = products.filter(product => {
-    // Global search filter - matches if no filter or name contains search term
-    const matchesGlobal = !globalFilter || product.name.toLowerCase().includes(globalFilter.toLowerCase());
+    // Global search filter
+    const matchesGlobal = !globalFilter || 
+      product.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
+      product.excerpt.toLowerCase().includes(globalFilter.toLowerCase());
     
-    // Status filter - shows all if empty string, otherwise matches specific status
+    // Status filter
     const matchesStatus = !statusFilter || product.status === statusFilter;
     
-    // Visibility filter - shows all if empty string, otherwise matches specific visibility
+    // Visibility filter
     let matchesVisibility = true;
     if (!visibilityFilter) {
-      matchesVisibility = true; // Show both visible and hidden (default behavior)
+      matchesVisibility = true;
     } else if (visibilityFilter === "VISIBLE") {
       matchesVisibility = product.isVisible === true;
     } else if (visibilityFilter === "HIDDEN") {
       matchesVisibility = product.isVisible === false;
     }
     
-    // Price range filter - only applies if price range has been set
-    const matchesPrice = !priceRange || (product.price >= currentPriceRange[0] && product.price <= currentPriceRange[1]);
+    // Price range filter
+    const matchesPrice = !priceRange || 
+      (product.price >= currentPriceRange[0] && product.price <= currentPriceRange[1]);
     
     return matchesGlobal && matchesStatus && matchesVisibility && matchesPrice;
   });
@@ -117,6 +124,7 @@ export default function ProductTable({
         tooltip="View Details"
         tooltipOptions={{ position: "top" }}
         className="hover:bg-blue-50"
+        disabled={loading}
       />
       <Button
         icon="pi pi-pencil"
@@ -128,6 +136,7 @@ export default function ProductTable({
         tooltip="Edit Product"
         tooltipOptions={{ position: "top" }}
         className="hover:bg-yellow-50"
+        disabled={loading}
       />
       <Button
         icon="pi pi-trash"
@@ -139,6 +148,7 @@ export default function ProductTable({
         tooltip="Delete Product"
         tooltipOptions={{ position: "top" }}
         className="hover:bg-red-50"
+        disabled={loading}
       />
     </div>
   );
@@ -148,20 +158,11 @@ export default function ProductTable({
   }, []);
 
   const handleStatusChange = (value: string | null) => {
-    const newValue = value || "";
-    console.log("Status changed from", statusFilter, "to", newValue);
-    setStatusFilter(newValue);
+    setStatusFilter(value || "");
   };
 
   const handleVisibilityChange = (value: string | null) => {
-    const newValue = value || "";
-    console.log("Visibility changed from", visibilityFilter, "to", newValue);
-    setVisibilityFilter(newValue);
-  };
-
-  const handleSearchChange = (value: string) => {
-    console.log("Search changed from", globalFilter, "to", value);
-    setGlobalFilter(value);
+    setVisibilityFilter(value || "");
   };
 
   const imageTemplate = (rowData: Product) => {
@@ -208,10 +209,8 @@ export default function ProductTable({
   const statusTemplate = (rowData: Product) => {
     const getSeverity = (status: string) => {
       switch (status.toLowerCase()) {
-        case "active": return "success";
-        case "inactive": return "danger";
-        case "pending": return "warning";
-        case "draft": return "info";
+        case "in stock": return "success";
+        case "out of stock": return "danger";
         default: return "secondary";
       }
     };
@@ -257,15 +256,6 @@ export default function ProductTable({
     priceRange !== null
   ].filter(Boolean).length;
 
-  // Debug logging for filter states
-  console.log("Current filter states:", {
-    globalFilter: globalFilter,
-    statusFilter: statusFilter,
-    visibilityFilter: visibilityFilter,
-    priceRange: priceRange,
-    activeFiltersCount: activeFiltersCount
-  });
-
   return (
     <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
       <div className="p-6">
@@ -286,6 +276,7 @@ export default function ProductTable({
               onClick={() => setShowFilters(!showFilters)}
               badge={activeFiltersCount > 0 ? activeFiltersCount.toString() : undefined}
               badgeClassName="bg-blue-500"
+              disabled={loading}
             />
             {activeFiltersCount > 0 && (
               <Button
@@ -294,6 +285,7 @@ export default function ProductTable({
                 severity="danger"
                 outlined
                 onClick={clearFilters}
+                disabled={loading}
               />
             )}
           </div>
@@ -314,8 +306,9 @@ export default function ProductTable({
                     <InputText
                       placeholder="Search by name..."
                       value={globalFilter}
-                      onChange={(e) => handleSearchChange(e.target.value)}
+                      onChange={(e) => setGlobalFilter(e.target.value)}
                       className="w-full"
+                      disabled={loading}
                     />
                   </span>
                 </div>
@@ -332,7 +325,7 @@ export default function ProductTable({
                     placeholder="Select status"
                     className="w-full"
                     showClear
-                    resetFilterOnHide
+                    disabled={loading}
                   />
                 </div>
 
@@ -348,7 +341,7 @@ export default function ProductTable({
                     placeholder="Select visibility"
                     className="w-full"
                     showClear
-                    resetFilterOnHide
+                    disabled={loading}
                   />
                 </div>
 
@@ -360,15 +353,13 @@ export default function ProductTable({
                   <div className="pt-4 pb-2">
                     <Slider
                       value={currentPriceRange}
-                      onChange={(e) => {
-                        console.log("Price range changed from", priceRange, "to", e.value);
-                        setPriceRange(e.value as [number, number]);
-                      }}
+                      onChange={(e) => setPriceRange(e.value as [number, number])}
                       range
                       min={minPrice}
                       max={maxPrice}
                       step={10}
                       className="w-full"
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -388,6 +379,7 @@ export default function ProductTable({
           scrollable
           className="border border-gray-200 rounded-lg overflow-hidden"
           stripedRows
+          loading={loading}
           emptyMessage={
             <div className="text-center py-8">
               <i className="pi pi-search text-4xl text-gray-400 mb-4"></i>
@@ -460,6 +452,7 @@ export default function ProductTable({
           cancelLabel="Cancel"
           severity="danger"
           icon="pi pi-trash"
+          loading={loading}
         />
       </div>
     </Card>

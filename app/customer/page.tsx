@@ -1,76 +1,57 @@
-"use client"
-import React, { useState, useEffect } from 'react'
-import { collection, getDocs, query, where, limit } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
-import { Product } from '@/types/Product'
+
+// ===========================
+// Updated CustomerPage with TanStack Query
+"use client";
+
+import React, { useState } from 'react';
+import { Product } from '@/types/Product';
+import { useProducts } from '@/lib/hooks/useProducts';
 
 const CustomerPage = () => {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState<{ [key: string]: number }>({})
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cart, setCart] = useState<{ [key: string]: number }>({});
 
-  useEffect(() => {
-    fetchProducts()
-  }, [])
-
-  const fetchProducts = async () => {
-    try {
-      const productsQuery = query(
-        collection(db, 'products'),
-        where('isVisible', '==', true)
-      )
-      const querySnapshot = await getDocs(productsQuery)
-      const productsData: Product[] = []
-      
-      querySnapshot.forEach((doc) => {
-        productsData.push({ id: doc.id, ...doc.data() } as Product)
-      })
-      
-      setProducts(productsData)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: productsResponse, isLoading, error, refetch } = useProducts({ 
+    visibleOnly: true 
+  });
+  const products = productsResponse?.data || [];
 
   const addToCart = (productId: string) => {
     setCart(prev => ({
       ...prev,
       [productId]: (prev[productId] || 0) + 1
-    }))
-  }
+    }));
+  };
 
   const removeFromCart = (productId: string) => {
     setCart(prev => {
-      const newCart = { ...prev }
+      const newCart = { ...prev };
       if (newCart[productId] > 1) {
-        newCart[productId] -= 1
+        newCart[productId] -= 1;
       } else {
-        delete newCart[productId]
+        delete newCart[productId];
       }
-      return newCart
-    })
-  }
+      return newCart;
+    });
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
   const getTotalCartItems = () => {
-    return Object.values(cart).reduce((sum, count) => sum + count, 0)
-  }
+    return Object.values(cart).reduce((sum, count) => sum + count, 0);
+  };
 
   const getTotalPrice = () => {
     return Object.entries(cart).reduce((total, [productId, count]) => {
-      const product = products.find(p => p.id === productId)
-      return total + (product ? product.price * count : 0)
-    }, 0)
-  }
+      const product = products.find(p => p.id === productId);
+      return total + (product ? product.price * count : 0);
+    }, 0);
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -78,7 +59,25 @@ const CustomerPage = () => {
           <p className="mt-4 text-gray-600">Loading products...</p>
         </div>
       </div>
-    )
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Oops! Something went wrong</h2>
+          <p className="text-gray-600 mb-4">Failed to load products</p>
+          <button
+            onClick={() => refetch()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -159,79 +158,91 @@ const CustomerPage = () => {
           </p>
         </div>
 
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📦</div>
-            <h4 className="text-xl font-semibold text-gray-900 mb-2">No products available</h4>
-            <p className="text-gray-600">Check back soon for new arrivals!</p>
+            <h4 className="text-xl font-semibold text-gray-900 mb-2">
+              {searchTerm ? 'No products found' : 'No products available'}
+            </h4>
+            <p className="text-gray-600">
+              {searchTerm ? 'Try a different search term' : 'Check back soon for new arrivals!'}
+            </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Clear Search
+              </button>
+            )}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.slice(0, 8).map((product) => (
-              <div key={product.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
-                <div className="relative">
-                  <img
-                    src={product.image || '/placeholder-image.jpg'}
-                    alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=No+Image'
-                    }}
-                  />
-                  <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
-                    product.status === 'In Stock' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {product.status}
+              {filteredProducts.slice(0, 8).map((product) => (
+                <div key={product.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                  <div className="relative">
+                    <img
+                      src={product.image || '/placeholder-image.jpg'}
+                      alt={product.name}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=No+Image';
+                      }}
+                    />
+                    <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
+                      product.status === 'In Stock' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {product.status}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="p-5">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                    {product.name}
-                  </h4>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                    {product.excerpt}
-                  </p>
                   
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-blue-600">
-                      ${product.price.toFixed(2)}
-                    </span>
+                  <div className="p-5">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {product.name}
+                    </h4>
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      {product.excerpt}
+                    </p>
                     
-                    <div className="flex items-center space-x-2">
-                      {cart[product.id] > 0 && (
-                        <>
-                          <button
-                            onClick={() => removeFromCart(product.id)}
-                            className="w-8 h-8 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center font-medium">
-                            {cart[product.id]}
-                          </span>
-                        </>
-                      )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-blue-600">
+                        ${product.price.toFixed(2)}
+                      </span>
                       
-                      <button
-                        onClick={() => addToCart(product.id)}
-                        disabled={product.status === 'Out of Stock'}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          product.status === 'Out of Stock'
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        {product.status === 'Out of Stock' ? 'Unavailable' : '+'}
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        {cart[product.id] > 0 && (
+                          <>
+                            <button
+                              onClick={() => removeFromCart(product.id)}
+                              className="w-8 h-8 bg-gray-200 text-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 text-center font-medium">
+                              {cart[product.id]}
+                            </span>
+                          </>
+                        )}
+                        
+                        <button
+                          onClick={() => addToCart(product.id)}
+                          disabled={product.status === 'Out of Stock'}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            product.status === 'Out of Stock'
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {product.status === 'Out of Stock' ? 'Unavailable' : '+'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-                          ))}
+              ))}
             </div>
             
             {/* View All Button */}
@@ -294,7 +305,7 @@ const CustomerPage = () => {
         </div>
       </footer>
     </div>
-  )
-}
+  );
+};
 
-export default CustomerPage
+export default CustomerPage;

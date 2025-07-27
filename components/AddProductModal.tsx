@@ -1,75 +1,34 @@
-// // components/AddProductModal.tsx
-// "use client";
 
-// import { Dialog } from "primereact/dialog";
-// import ProductForm, { ProductFormData } from "./ProductForm";
-
-// export default function AddProductModal({
-//   visible,
-//   onHide,
-//   onSubmit,
-//   defaultValues,
-// }: {
-//   visible: boolean;
-//   onHide: () => void;
-//   onSubmit: (data: ProductFormData) => void;
-//   defaultValues?: Partial<ProductFormData>;
-// }) {
-//   const isEdit = !!defaultValues && Object.keys(defaultValues).length > 0;
-
-//   const handleSubmit = async (data: ProductFormData) => {
-//     await onSubmit(data);
-//     onHide(); // Close modal after successful submission
-//   };
-
-//   return (
-//     <Dialog
-//       visible={visible}
-//       style={{ width: "90vw", maxWidth: "1200px" }}
-//       onHide={onHide}
-//       closable={true}
-//       closeOnEscape={true}
-//       dismissableMask={false}
-//       headerStyle={{ display: "none" }} // Hide default header since we have custom header in form
-//       contentStyle={{ padding: 0 }}
-//       className="product-form-dialog"
-//     >
-//       <ProductForm 
-//         onSubmit={handleSubmit} 
-//         defaultValues={defaultValues} 
-//         isEdit={isEdit}
-//       />
-//     </Dialog>
-//   );
-// }
-
-
+// ===========================
 // components/AddProductModal.tsx
 "use client";
 
 import { Dialog } from "primereact/dialog";
 import ProductForm, { ProductFormData } from "./ProductForm";
 
+interface AddProductModalProps {
+  visible: boolean;
+  onHide: () => void;
+  onSubmit: (data: ProductFormData) => Promise<void>;
+  defaultValues?: Partial<ProductFormData>;
+  loading?: boolean;
+}
+
 export default function AddProductModal({
   visible,
   onHide,
   onSubmit,
   defaultValues,
-}: {
-  visible: boolean;
-  onHide: () => void;
-  onSubmit: (data: ProductFormData) => void;
-  defaultValues?: Partial<ProductFormData>;
-}) {
+  loading = false,
+}: AddProductModalProps) {
   const isEdit = !!defaultValues && Object.keys(defaultValues).length > 0;
 
   const handleSubmit = async (data: ProductFormData) => {
     await onSubmit(data);
-    onHide(); // Close modal after successful submission
   };
 
   const handleCancel = () => {
-    onHide(); // Close modal when cancel is clicked
+    onHide();
   };
 
   return (
@@ -77,18 +36,19 @@ export default function AddProductModal({
       visible={visible}
       style={{ width: "90vw", maxWidth: "1200px" }}
       onHide={onHide}
-      closable={true}
-      closeOnEscape={true}
+      closable={!loading}
+      closeOnEscape={!loading}
       dismissableMask={false}
-      headerStyle={{ display: "none" }} // Hide default header since we have custom header in form
+      headerStyle={{ display: "none" }}
       contentStyle={{ padding: 0 }}
       className="product-form-dialog"
     >
       <ProductForm 
         onSubmit={handleSubmit}
-        onCancel={handleCancel} // Pass the cancel handler
+        onCancel={handleCancel}
         defaultValues={defaultValues}
         isEdit={isEdit}
+        loading={loading}
       />
     </Dialog>
   );

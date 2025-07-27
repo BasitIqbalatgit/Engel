@@ -1,3 +1,7 @@
+
+
+// ===========================
+// components/ConfirmationDialog.tsx
 "use client";
 
 import { Dialog } from "primereact/dialog";
@@ -7,7 +11,7 @@ import { useState } from "react";
 interface ConfirmationDialogProps {
   visible: boolean;
   onHide: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void> | void;
   title?: string;
   message?: string;
   confirmLabel?: string;
@@ -106,7 +110,6 @@ export default function ConfirmationDialog({
       maskClassName="bg-black bg-opacity-50"
     >
       <div className="p-6">
-        {/* Icon and Title */}
         <div className="flex items-start gap-4 mb-4">
           <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${getSeverityColor()}`}>
             <i className={`${icon} text-xl ${getSeverityIconColor()}`}></i>
